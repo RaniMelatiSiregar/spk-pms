@@ -314,12 +314,12 @@
         <span>Akun Default</span>
       </div>
 
-      {{-- <div class="default-credentials">
+      <div class="default-credentials">
         <p><strong>Email:</strong> admin@pms.local</p>
         <p><strong>Password:</strong> password123</p>
       </div>
     </div>
-  </div> --}}
+  </div>
 
   <script>
     document.querySelectorAll('.form-control').forEach(input => {

@@ -18,7 +18,7 @@
         @if($supplier) @method('PUT') @endif
 
         <div class="form-section">
-          <h5 class="section-title"><i class="fas fa-info-circle"></i> Informasi Dasar</h5>
+          <h5 class="section-title"><i class="fas fa-info-circle"></i> Informasi Dasar Supplier</h5>
           
           <div class="row g-3">
             <div class="col-md-6">
@@ -62,108 +62,38 @@
                 </label>
                 <input type="text" name="location" 
                        value="{{ old('location', $supplier->location ?? '') }}" 
-                       class="form-control-modern" 
+                       class="form-control-modern @error('location') is-invalid @enderror" 
                        placeholder="Contoh: Muara, Riau">
+                @error('location')
+                  <div class="invalid-feedback-modern">{{ $message }}</div>
+                @enderror
               </div>
             </div>
           </div>
         </div>
 
+        <!-- INFO BOX -->
         <div class="form-section">
-          <h5 class="section-title"><i class="fas fa-chart-line"></i> Data Penilaian</h5>
-          
-          <div class="row g-3">
-            <div class="col-md-6">
-              <div class="form-group-modern">
-                <label class="form-label-modern">
-                  <i class="fas fa-money-bill-wave"></i> Harga per kg (Rp)
-                  <span class="required">*</span>
-                </label>
-                <div class="input-group-modern">
-                  <span class="input-prefix">Rp</span>
-                  <input type="number" name="price_per_kg" 
-                         value="{{ old('price_per_kg', $supplier->price_per_kg ?? '') }}" 
-                         class="form-control-modern @error('price_per_kg') is-invalid @enderror" 
-                         placeholder="185000"
-                         required>
-                </div>
-                <small class="form-hint">
-                  <i class="fas fa-info-circle"></i> Rentang normal: Rp 170.000 - Rp 205.000
-                </small>
-                @error('price_per_kg')
-                  <div class="invalid-feedback-modern">{{ $message }}</div>
-                @enderror
-              </div>
+          <div class="alert alert-info-custom">
+            <div class="alert-icon">
+              <i class="fas fa-info-circle"></i>
             </div>
-
-            <div class="col-md-6">
-              <div class="form-group-modern">
-                <label class="form-label-modern">
-                  <i class="fas fa-box"></i> Volume per bulan (kg)
-                  <span class="required">*</span>
-                </label>
-                <div class="input-group-modern">
-                  <input type="number" name="volume_per_month" 
-                         value="{{ old('volume_per_month', $supplier->volume_per_month ?? '') }}" 
-                         class="form-control-modern @error('volume_per_month') is-invalid @enderror" 
-                         placeholder="10000"
-                         required>
-                  <span class="input-suffix">kg</span>
+            <div class="alert-content">
+              <h6><i class="fas fa-calendar-alt"></i> Informasi Periode & Penilaian</h6>
+              <p class="mb-2">Data penilaian (harga, volume, ketepatan, frekuensi) akan diisi saat membuat periode baru.</p>
+              <div class="alert-steps">
+                <div class="step">
+                  <span class="step-number">1</span>
+                  <span class="step-text">Simpan data supplier ini terlebih dahulu</span>
                 </div>
-                <small class="form-hint">
-                  <i class="fas fa-info-circle"></i> Minimal 3.000 kg per bulan
-                </small>
-                @error('volume_per_month')
-                  <div class="invalid-feedback-modern">{{ $message }}</div>
-                @enderror
-              </div>
-            </div>
-
-            <div class="col-md-6">
-              <div class="form-group-modern">
-                <label class="form-label-modern">
-                  <i class="fas fa-clock"></i> Ketepatan Waktu (%)
-                  <span class="required">*</span>
-                </label>
-                <div class="input-group-modern">
-                  <input type="number" name="on_time_percent" 
-                         value="{{ old('on_time_percent', $supplier->on_time_percent ?? '') }}" 
-                         class="form-control-modern @error('on_time_percent') is-invalid @enderror" 
-                         placeholder="95"
-                         min="0" max="100"
-                         required>
-                  <span class="input-suffix">%</span>
+                <div class="step">
+                  <span class="step-number">2</span>
+                  <span class="step-text">Buka menu <a href="{{ route('periode.index') }}" class="alert-link">Periode</a> → Buat periode baru</span>
                 </div>
-                <small class="form-hint">
-                  <i class="fas fa-info-circle"></i> Persentase pengiriman tepat waktu (0-100%)
-                </small>
-                @error('on_time_percent')
-                  <div class="invalid-feedback-modern">{{ $message }}</div>
-                @enderror
-              </div>
-            </div>
-
-            <div class="col-md-6">
-              <div class="form-group-modern">
-                <label class="form-label-modern">
-                  <i class="fas fa-calendar-check"></i> Frekuensi per bulan
-                  <span class="required">*</span>
-                </label>
-                <div class="input-group-modern">
-                  <input type="number" name="freq_per_month" 
-                         value="{{ old('freq_per_month', $supplier->freq_per_month ?? '') }}" 
-                         class="form-control-modern @error('freq_per_month') is-invalid @enderror" 
-                         placeholder="3"
-                         min="0"
-                         required>
-                  <span class="input-suffix">kali</span>
+                <div class="step">
+                  <span class="step-number">3</span>
+                  <span class="step-text">Pilih supplier ini dan isi data penilaiannya</span>
                 </div>
-                <small class="form-hint">
-                  <i class="fas fa-info-circle"></i> Berapa kali pengiriman dalam sebulan
-                </small>
-                @error('freq_per_month')
-                  <div class="invalid-feedback-modern">{{ $message }}</div>
-                @enderror
               </div>
             </div>
           </div>
@@ -179,22 +109,6 @@
           </a>
         </div>
       </form>
-    </div>
-
-    <!-- Info Card -->
-    <div class="info-card mt-3">
-      <div class="info-card-header">
-        <i class="fas fa-lightbulb"></i> Tips Pengisian
-      </div>
-      <div class="info-card-body">
-        <ul>
-          <li><strong>Kode Supplier:</strong> Gunakan format SUP001, SUP002, dst. Kode harus unik.</li>
-          <li><strong>Harga:</strong> Harga yang lebih rendah akan mendapat nilai lebih tinggi dalam perhitungan.</li>
-          <li><strong>Volume:</strong> Volume yang lebih besar menunjukkan kapasitas pasokan yang lebih baik.</li>
-          <li><strong>Ketepatan:</strong> Persentase pengiriman yang tepat waktu (100% = selalu tepat waktu).</li>
-          <li><strong>Frekuensi:</strong> Jumlah pengiriman per bulan, semakin sering semakin baik.</li>
-        </ul>
-      </div>
     </div>
   </div>
 </div>
@@ -297,60 +211,98 @@
   border-color: #e53e3e;
 }
 
-.input-group-modern {
-  display: flex;
-  align-items: center;
-  border: 2px solid #cbd5e0;
-  border-radius: 10px;
-  background: #f7fafc;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.input-group-modern:focus-within {
-  border-color: #2b6cb0;
-  background: white;
-  box-shadow: 0 0 0 4px rgba(43, 108, 176, 0.1);
-}
-
-.input-prefix, .input-suffix {
-  padding: 12px 15px;
-  background: #ebf8ff;
-  color: #2b6cb0;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.input-group-modern .form-control-modern {
-  border: none;
-  background: transparent;
-  box-shadow: none;
-}
-
-.input-group-modern .form-control-modern:focus {
-  box-shadow: none;
-}
-
-.form-hint {
-  display: block;
-  margin-top: 8px;
-  color: #718096;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.form-hint i {
-  color: #2b6cb0;
-}
-
 .invalid-feedback-modern {
   display: block;
   margin-top: 8px;
   color: #e53e3e;
   font-size: 13px;
   font-weight: 600;
+}
+
+.alert-info-custom {
+  background: linear-gradient(135deg, #ebf8ff 0%, #e6fffa 100%);
+  border: 2px solid #bee3f8;
+  border-left: 5px solid #2b6cb0;
+  color: #2c5282;
+  padding: 20px;
+  border-radius: 12px;
+  margin: 0;
+}
+
+.alert-info-custom .alert-icon {
+  float: left;
+  margin-right: 15px;
+  font-size: 24px;
+  color: #2b6cb0;
+}
+
+.alert-info-custom .alert-content {
+  overflow: hidden;
+}
+
+.alert-info-custom h6 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a365d;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alert-info-custom h6 i {
+  color: #2b6cb0;
+}
+
+.alert-info-custom p {
+  margin-bottom: 15px;
+  line-height: 1.5;
+}
+
+.alert-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 15px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  border-left: 3px solid #2b6cb0;
+}
+
+.step-number {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #2b6cb0 0%, #1a365d 100%);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.step-text {
+  flex: 1;
+  font-size: 14px;
+  color: #2d3748;
+}
+
+.alert-link {
+  color: #2b6cb0 !important;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.alert-link:hover {
+  color: #1a365d !important;
 }
 
 .form-actions {
@@ -404,50 +356,6 @@
   box-shadow: 0 5px 15px rgba(74, 85, 104, 0.3);
 }
 
-.info-card {
-  background: white;
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 5px 20px rgba(0,0,0,0.08);
-}
-
-.info-card-header {
-  background: linear-gradient(135deg, #2b6cb0 0%, #1a365d 100%);
-  color: white;
-  padding: 15px 25px;
-  font-weight: 700;
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.info-card-body {
-  padding: 25px;
-}
-
-.info-card-body ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.info-card-body li {
-  padding: 10px 0;
-  border-bottom: 1px solid #e2e8f0;
-  color: #4a5568;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.info-card-body li:last-child {
-  border-bottom: none;
-}
-
-.info-card-body strong {
-  color: #1a365d;
-}
-
 @media (max-width: 768px) {
   .form-page-header {
     flex-direction: column;
@@ -465,6 +373,13 @@
   .btn-submit, .btn-cancel {
     width: 100%;
     justify-content: center;
+  }
+  
+  .alert-info-custom .alert-icon {
+    float: none;
+    margin-right: 0;
+    margin-bottom: 10px;
+    text-align: center;
   }
 }
 </style>
@@ -488,12 +403,6 @@ document.getElementById('supplierForm').addEventListener('submit', function(e) {
     e.preventDefault();
     alert('Mohon lengkapi semua field yang wajib diisi (*)');
   }
-});
-
-document.querySelectorAll('input[type="number"]').forEach(input => {
-  input.addEventListener('input', function(e) {
-    this.classList.remove('is-invalid');
-  });
 });
 
 document.querySelectorAll('.form-control-modern').forEach(input => {

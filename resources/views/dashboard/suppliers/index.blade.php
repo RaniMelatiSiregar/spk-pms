@@ -14,7 +14,7 @@
 
 <!-- Stats Cards -->
 <div class="row g-3 mb-4">
-  <div class="col-md-3">
+  <div class="col-md-4">
     <div class="mini-stats-card bg-gradient-blue">
       <div class="mini-stats-icon">
         <i class="fas fa-users"></i>
@@ -25,36 +25,30 @@
       </div>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-md-4">
     <div class="mini-stats-card bg-gradient-green">
       <div class="mini-stats-icon">
-        <i class="fas fa-money-bill-wave"></i>
+        <i class="fas fa-map-marker-alt"></i>
       </div>
       <div class="mini-stats-content">
-        <h4>Rp {{ number_format($suppliers->avg('price_per_kg'), 0, ',', '.') }}</h4>
-        <p>Rata-rata Harga</p>
+        <h4>{{ $suppliers->where('location', '!=', null)->count() }}</h4>
+        <p>Supplier dengan Lokasi</p>
       </div>
     </div>
   </div>
-  <div class="col-md-3">
-    <div class="mini-stats-card bg-gradient-orange">
-      <div class="mini-stats-icon">
-        <i class="fas fa-box"></i>
-      </div>
-      <div class="mini-stats-content">
-        <h4>{{ number_format($suppliers->sum('volume_per_month'), 0, ',', '.') }}</h4>
-        <p>Total Volume/bulan</p>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
+  <div class="col-md-4">
     <div class="mini-stats-card bg-gradient-purple">
       <div class="mini-stats-icon">
-        <i class="fas fa-percentage"></i>
+        <i class="fas fa-calendar-check"></i>
       </div>
       <div class="mini-stats-content">
-        <h4>{{ round($suppliers->avg('on_time_percent'), 1) }}%</h4>
-        <p>Rata-rata Ketepatan</p>
+        @php
+          $activePeriode = \App\Models\Periode::where('is_active', 1)->first();
+          $activeSupplierCount = $activePeriode ? 
+            \App\Models\Supplier::where('periode_id', $activePeriode->id)->count() : 0;
+        @endphp
+        <h4>{{ $activeSupplierCount }}</h4>
+        <p>Supplier Aktif</p>
       </div>
     </div>
   </div>
@@ -75,47 +69,38 @@
       <thead>
         <tr>
           <th width="5%">No</th>
-          <th width="10%">Kode</th>
-          <th width="20%">Nama Supplier</th>
-          <th width="10%">Lokasi</th>
-          <th width="12%">Harga/kg</th>
-          <th width="13%">Volume/bulan</th>
-          <th width="10%">Ketepatan</th>
-          <th width="10%">Frekuensi</th>
-          <th width="10%" class="text-center">Aksi</th>
+          <th width="15%">Kode</th>
+          <th width="35%">Nama Supplier</th>
+          <th width="25%">Lokasi</th>
+          <th width="20%" class="text-center">Aksi</th>
         </tr>
       </thead>
       <tbody>
         @foreach($suppliers as $i => $s)
         <tr>
           <td><span class="row-number">{{ $i + 1 }}</span></td>
-          <td><span class="badge-code">{{ $s->code }}</span></td>
-          <td><strong>{{ $s->name }}</strong></td>
+          <td>
+            <span class="badge-code">{{ $s->code }}</span>
+            @if($s->periode && $s->periode->is_active)
+              <span class="badge badge-success badge-sm">Aktif</span>
+            @endif
+          </td>
+          <td>
+            <strong>{{ $s->name }}</strong>
+            <div class="text-muted small mt-1">
+              @if($s->periode)
+                Periode: {{ $s->periode->name }}
+              @else
+                <span class="text-danger">Belum ada periode</span>
+              @endif
+            </div>
+          </td>
           <td>
             @if($s->location)
               <i class="fas fa-map-marker-alt text-danger"></i> {{ $s->location }}
             @else
               <span class="text-muted">-</span>
             @endif
-          </td>
-          <td><span class="price-tag">Rp {{ number_format($s->price_per_kg, 0, ',', '.') }}</span></td>
-          <td>{{ number_format($s->volume_per_month, 0, ',', '.') }} kg</td>
-          <td>
-            <div class="progress-wrapper">
-              <div class="progress" style="height: 8px;">
-                <div class="progress-bar 
-                  @if($s->on_time_percent >= 90) bg-success
-                  @elseif($s->on_time_percent >= 75) bg-warning
-                  @else bg-danger
-                  @endif" 
-                  style="width: {{ $s->on_time_percent }}%">
-                </div>
-              </div>
-              <span class="progress-label">{{ $s->on_time_percent }}%</span>
-            </div>
-          </td>
-          <td>
-            <span class="freq-badge">{{ $s->freq_per_month }}x/bulan</span>
           </td>
           <td class="text-center">
             <div class="action-buttons">
@@ -137,9 +122,18 @@
       </tbody>
     </table>
   </div>
+  
+  <!-- Info Box -->
+  <div class="card-footer bg-light">
+    <div class="alert alert-info mb-0">
+      <i class="fas fa-info-circle"></i> 
+      <strong>Catatan:</strong> Data penilaian (harga, volume, ketepatan, frekuensi) diisi saat membuat periode baru di menu <a href="{{ route('periode.index') }}" class="alert-link">Periode</a>
+    </div>
+  </div>
 </div>
 
 <style>
+
 .page-header-section {
   display: flex;
   justify-content: space-between;
@@ -215,12 +209,8 @@
   background: linear-gradient(135deg, #38a169 0%, #48bb78 100%);
 }
 
-.bg-gradient-orange::before {
-  background: linear-gradient(135deg, #dd6b20 0%, #ed8936 100%);
-}
-
 .bg-gradient-purple::before {
-  background: linear-gradient(135deg, #2b6cb0 0%, #1a365d 100%);
+  background: linear-gradient(135deg, #805ad5 0%, #6b46c1 100%);
 }
 
 .mini-stats-card:hover {
@@ -249,12 +239,8 @@
   background: linear-gradient(135deg, #38a169 0%, #48bb78 100%);
 }
 
-.bg-gradient-orange .mini-stats-icon {
-  background: linear-gradient(135deg, #dd6b20 0%, #ed8936 100%);
-}
-
 .bg-gradient-purple .mini-stats-icon {
-  background: linear-gradient(135deg, #2b6cb0 0%, #1a365d 100%);
+  background: linear-gradient(135deg, #805ad5 0%, #6b46c1 100%);
 }
 
 .mini-stats-content {
@@ -379,46 +365,12 @@
   font-weight: 600;
   font-size: 12px;
   display: inline-block;
+  margin-right: 5px;
 }
 
-.price-tag {
-  background: #e6fffa;
-  color: #234e52;
-  padding: 5px 10px;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 13px;
-  display: inline-block;
-}
-
-.progress-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.progress-wrapper .progress {
-  flex: 1;
-  background: #e2e8f0;
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.progress-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #1a365d;
-  min-width: 40px;
-}
-
-.freq-badge {
-  background: #ebf8ff;
-  color: #2b6cb0;
-  padding: 5px 10px;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 12px;
-  display: inline-block;
+.badge-sm {
+  font-size: 9px;
+  padding: 2px 6px;
 }
 
 /* Action Buttons */
@@ -461,6 +413,27 @@
   background: #c53030;
   color: white;
   transform: scale(1.1);
+}
+
+.card-footer {
+  background: #f7fafc !important;
+  border-top: 1px solid #e2e8f0;
+  padding: 15px 20px;
+  border-radius: 0 0 15px 15px;
+}
+
+.alert-info {
+  background-color: #ebf8ff;
+  border-color: #bee3f8;
+  color: #2c5282;
+  border-radius: 10px;
+  margin-bottom: 0;
+}
+
+.alert-link {
+  color: #2b6cb0 !important;
+  font-weight: 600;
+  text-decoration: underline;
 }
 </style>
 

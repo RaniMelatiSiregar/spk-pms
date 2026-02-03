@@ -66,50 +66,66 @@ class SPKController extends Controller
         return 0;
     }
 
-    public function calculateSMART($periode_id)
-    {
-        $suppliers = Supplier::where('periode_id', $periode_id)->get();
-        $criterias = Criteria::with('parameters')
-            ->where('periode_id', $periode_id)
-            ->orderBy('id')
-            ->get();
+    private function utility($value, $min, $max)
+{
+    if ($max == $min) return 1;
+    return round(1 + 4 * (($value - $min) / ($max - $min)), 2);
+}
 
-        if ($suppliers->isEmpty() || $criterias->isEmpty()) {
-            return collect([]);
-        }
+public function calculateSMART($periode_id)
+{
+    $suppliers = Supplier::where('periode_id', $periode_id)->get();
+    $criterias = Criteria::where('periode_id', $periode_id)->get();
 
-        $results = [];
+    $stats = [
+        'price_per_kg'     => [$suppliers->min('price_per_kg'), $suppliers->max('price_per_kg')],
+        'volume_per_month' => [$suppliers->min('volume_per_month'), $suppliers->max('volume_per_month')],
+        'on_time_percent'  => [$suppliers->min('on_time_percent'), $suppliers->max('on_time_percent')],
+        'freq_per_month'   => [$suppliers->min('freq_per_month'), $suppliers->max('freq_per_month')],
+    ];
 
-        foreach ($suppliers as $supplier) {
-            $totalScore = 0;
-            $detail = [];
+    $results = [];
 
-            foreach ($criterias as $c) {
+    foreach ($suppliers as $s) {
 
-                $value = $this->getSupplierValue($supplier, $c->name);
-                $score = $this->matchParameter($c, $value);
-                $weighted = $score * $c->weight;
+        $detail = [];
+        $total = 0;
 
-                $totalScore += $weighted;
+        foreach ($criterias as $c) {
 
-                $detail[$c->code] = [
-                    'value'    => $value,
-                    'score'    => $score,
-                    'weighted' => round($weighted, 4)
-                ];
+            if (str_contains($c->name, 'Harga')) {
+                $u = 6 - $this->utility($s->price_per_kg, ...$stats['price_per_kg']);
             }
+            elseif (str_contains($c->name, 'Volume')) {
+                $u = $this->utility($s->volume_per_month, ...$stats['volume_per_month']);
+            }
+            elseif (str_contains($c->name, 'Ketepatan')) {
+                $u = $this->utility($s->on_time_percent, ...$stats['on_time_percent']);
+            }
+            elseif (str_contains($c->name, 'Frekuensi')) {
+                $u = $this->utility($s->freq_per_month, ...$stats['freq_per_month']);
+            } else continue;
 
-            $results[] = [
-                'supplier' => $supplier,
-                'score'    => round($totalScore, 4),
-                'detail'   => $detail
+            $weighted = $u * $c->weight;
+            $total += $weighted;
+
+            $detail[$c->code] = [
+                'score' => $u,
+                'weighted' => round($weighted, 3)
             ];
         }
 
-        usort($results, fn($a, $b) => $b['score'] <=> $a['score']);
-
-        return collect($results);
+        $results[] = [
+            'supplier' => $s,
+            'score' => round($total, 3),
+            'detail' => $detail
+        ];
     }
+
+    usort($results, fn($a, $b) => $b['score'] <=> $a['score']);
+    return collect($results);
+}
+
 
     public function compute($periodeId = null)
     {

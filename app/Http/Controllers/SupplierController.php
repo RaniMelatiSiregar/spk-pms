@@ -4,21 +4,14 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Supplier;
-use App\Models\Periode;
 
 class SupplierController extends Controller
 {
-    public function index()
+        public function index()
     {
-        $periode = Periode::where('is_active', 1)->first();
-
-        if (!$periode) {
-            return view('dashboard.suppliers.index', [
-                'suppliers' => collect([])
-            ]);
-        }
-
-        $suppliers = Supplier::where('periode_id', $periode->id)->get();
+        $suppliers = Supplier::with('periode')
+            ->orderBy('created_at', 'asc')
+            ->get();
 
         return view('dashboard.suppliers.index', compact('suppliers'));
     }
@@ -28,31 +21,23 @@ class SupplierController extends Controller
         return view('dashboard.suppliers.form', ['supplier' => null]);
     }
 
-    public function store(Request $r)
+    public function store(Request $request)
     {
-        $r->validate([
+        $request->validate([
             'code' => 'required|unique:suppliers,code',
             'name' => 'required',
-            'price_per_kg' => 'required|integer',
-            'volume_per_month' => 'required|integer',
-            'on_time_percent' => 'required|integer',
-            'freq_per_month' => 'required|integer',
         ]);
-
-        $periode = Periode::where('is_active', 1)->first();
 
         Supplier::create([
-            'code' => $r->code,
-            'name' => $r->name,
-            'location' => $r->location,
-            'price_per_kg' => $r->price_per_kg,
-            'volume_per_month' => $r->volume_per_month,
-            'on_time_percent' => $r->on_time_percent,
-            'freq_per_month' => $r->freq_per_month,
-            'periode_id' => $periode?->id,
+            'code' => $request->code,
+            'name' => $request->name,
+            'location' => $request->location,
+            // PERIODE & PENILAIAN DIISI NANTI
         ]);
 
-        return redirect()->route('supplier.index')->with('success', 'Supplier ditambah');
+        return redirect()
+            ->route('supplier.index')
+            ->with('success', 'Supplier berhasil ditambahkan');
     }
 
     public function edit(Supplier $supplier)
@@ -60,25 +45,30 @@ class SupplierController extends Controller
         return view('dashboard.suppliers.form', compact('supplier'));
     }
 
-    public function update(Request $r, Supplier $supplier)
+    public function update(Request $request, Supplier $supplier)
     {
-        $r->validate([
-            'code' => "required|unique:suppliers,code,{$supplier->id}",
+        $request->validate([
+            'code' => 'required|unique:suppliers,code,' . $supplier->id,
             'name' => 'required',
-            'price_per_kg' => 'required|integer',
-            'volume_per_month' => 'required|integer',
-            'on_time_percent' => 'required|integer',
-            'freq_per_month' => 'required|integer',
         ]);
 
-        $supplier->update($r->all());
+        $supplier->update([
+            'code' => $request->code,
+            'name' => $request->name,
+            'location' => $request->location,
+        ]);
 
-        return redirect()->route('supplier.index')->with('success','Supplier diupdate');
+        return redirect()
+            ->route('supplier.index')
+            ->with('success', 'Supplier berhasil diperbarui');
     }
 
     public function destroy(Supplier $supplier)
     {
         $supplier->delete();
-        return redirect()->route('supplier.index')->with('success','Supplier dihapus');
+
+        return redirect()
+            ->route('supplier.index')
+            ->with('success', 'Supplier berhasil dihapus');
     }
 }

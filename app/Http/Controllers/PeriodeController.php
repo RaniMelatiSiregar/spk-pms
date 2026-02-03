@@ -109,23 +109,26 @@ private function copySuppliersWithNewData(array $supplierIds, array $supplierDat
     $suppliers = Supplier::whereIn('id', $supplierIds)->get();
 
     foreach ($suppliers as $s) {
-        // Cek jika supplier dengan code yang sama sudah ada di periode tujuan
-        $existing = Supplier::where('periode_id', $toPeriodeId)
+        // Cek hanya di periode tujuan
+        $exists = Supplier::where('periode_id', $toPeriodeId)
             ->where('code', $s->code)
             ->exists();
 
-        if (!$existing) {
-            Supplier::create([
-                'periode_id'        => $toPeriodeId,
-                'code'              => $s->code,
-                'name'              => $s->name,
-                'location'          => $s->location,
-                'price_per_kg'      => $supplierData[$s->id]['price_per_kg'] ?? $s->price_per_kg,
-                'volume_per_month'  => $supplierData[$s->id]['volume_per_month'] ?? $s->volume_per_month,
-                'on_time_percent'   => $supplierData[$s->id]['on_time_percent'] ?? $s->on_time_percent,
-                'freq_per_month'    => $supplierData[$s->id]['freq_per_month'] ?? $s->freq_per_month,
-            ]);
+        if ($exists) {
+            continue;
         }
+
+        Supplier::create([
+            'periode_id'        => $toPeriodeId,
+            'code'              => $s->code,
+            'name'              => $s->name,
+            'location'          => $s->location,
+            'price_per_kg'      => $supplierData[$s->id]['price_per_kg'] ?? $s->price_per_kg,
+            'volume_per_month'  => $supplierData[$s->id]['volume_per_month'] ?? $s->volume_per_month,
+            'on_time_percent'   => $supplierData[$s->id]['on_time_percent'] ?? $s->on_time_percent,
+            'freq_per_month'    => $supplierData[$s->id]['freq_per_month'] ?? $s->freq_per_month,
+            'is_active'         => 1
+        ]);
     }
 }
 
