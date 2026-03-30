@@ -60,12 +60,25 @@
 
       <div class="periode-stats">
         <div class="stat-box">
-          <i class="fas fa-users"></i>
-          <div>
-            <strong>{{ $periode->suppliers->count() }}</strong>
-            <span>Supplier</span>
-          </div>
+        <i class="fas fa-users"></i>
+        <div>
+
+          @php
+          $criteriaIds = \App\Models\Criteria::where('periode_id', $periode->id)->pluck('id');
+
+          $supplierCount = \App\Models\SupplierScore::whereIn('criteria_id', $criteriaIds)
+              ->distinct('supplier_id')
+              ->count('supplier_id');
+
+          if ($supplierCount == 0) {
+              $supplierCount = \App\Models\Supplier::where('periode_id', $periode->id)->count();
+          }
+          @endphp
+
+          <strong>{{ $supplierCount }}</strong>
+          <span>Supplier</span>
         </div>
+      </div>
         <div class="stat-box">
           <i class="fas fa-list-check"></i>
           <div>

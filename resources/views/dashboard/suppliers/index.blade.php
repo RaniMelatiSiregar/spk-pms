@@ -42,12 +42,7 @@
         <i class="fas fa-calendar-check"></i>
       </div>
       <div class="mini-stats-content">
-        @php
-          $activePeriode = \App\Models\Periode::where('is_active', 1)->first();
-          $activeSupplierCount = $activePeriode ? 
-            \App\Models\Supplier::where('periode_id', $activePeriode->id)->count() : 0;
-        @endphp
-        <h4>{{ $activeSupplierCount }}</h4>
+        <h4>{{ $activeSuppliersCount }}</h4>
         <p>Supplier Aktif</p>
       </div>
     </div>
@@ -81,8 +76,8 @@
           <td><span class="row-number">{{ $i + 1 }}</span></td>
           <td>
             <span class="badge-code">{{ $s->code }}</span>
-            @if($s->periode && $s->periode->is_active)
-              <span class="badge badge-success badge-sm">Aktif</span>
+            @if(in_array($s->id, $activeSupplierIds))
+                <span class="badge bg-success text-white ms-1">Aktif</span>
             @endif
           </td>
           <td>

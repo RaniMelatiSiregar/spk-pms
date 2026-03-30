@@ -7,6 +7,7 @@ use App\Models\Periode;
 use App\Models\Supplier;
 use App\Models\Criteria;
 use App\Models\Parameter;
+use App\Models\SupplierScore;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -31,49 +32,33 @@ class PeriodeController extends Controller
             'end_date'   => Carbon::now()->endOfMonth()->format('Y-m-d')
         ];
 
-        // Ambil semua supplier unik dari semua periode
-        $allSuppliers = Supplier::select('id', 'code', 'name', 'location', 'price_per_kg', 
-                                        'volume_per_month', 'on_time_percent', 'freq_per_month', 'periode_id')
-            ->with('periode')
-            ->orderBy('code')
-            ->get()
-            ->unique('code'); // Ambil unique berdasarkan code
+        $allSuppliers = Supplier::orderBy('code')->get();
 
         $criteriaTemplates = Criteria::with('parameters')
             ->whereHas('parameters')
             ->get();
 
-        return view('periode.create', [
-            'periode'                 => null,
-            'previousPeriodes'        => $previousPeriodes,
-            'suggestions'             => $suggestions,
-            'allSuppliers'            => $allSuppliers,
-            'criteriaTemplates'       => $criteriaTemplates
-        ]);
+        return view('periode.create', compact(
+            'previousPeriodes',
+            'suggestions',
+            'allSuppliers',
+            'criteriaTemplates'
+        ));
     }
 
     public function store(Request $request)
 {
     $request->validate([
-        'name'              => 'required|string|max:255',
-        'code'              => 'required|string|max:100|unique:periodes,code',
-        'start_date'        => 'required|date',
-        'end_date'          => 'required|date|after:start_date',
+        'name' => 'required|string|max:255',
+        'code' => 'required|string|max:100|unique:periodes,code',
+        'start_date' => 'required|date',
+        'end_date' => 'required|date|after:start_date',
         'selected_suppliers' => 'required|array|min:1',
-        'selected_suppliers.*' => 'exists:suppliers,id',
-        'supplier_data'     => 'required|array',
-        'supplier_data.*.price_per_kg' => 'required|numeric|min:0',
-        'supplier_data.*.volume_per_month' => 'required|numeric|min:0',
-        'supplier_data.*.on_time_percent' => 'required|numeric|min:0|max:100',
-        'supplier_data.*.freq_per_month' => 'required|integer|min:0',
+        'supplier_data' => 'required|array',
     ]);
 
-    $dayCount = Carbon::parse($request->start_date)->diffInDays($request->end_date);
-    if ($dayCount > 31) {
-        return back()->withInput()->with('error', 'Periode maksimal 31 hari!');
-    }
-
     DB::beginTransaction();
+
     try {
         Periode::query()->update(['is_active' => 0]);
 
@@ -83,159 +68,105 @@ class PeriodeController extends Controller
             'start_date'  => $request->start_date,
             'end_date'    => $request->end_date,
             'description' => $request->description,
-            'is_active'   => true,
+            'is_active'   => 1,
         ]);
 
-        // Buat kriteria default
         $this->createDefaultCriteria($periode->id);
 
-        // Copy supplier dengan data baru
-        if ($request->selected_suppliers && count($request->selected_suppliers) > 0) {
-            $this->copySuppliersWithNewData($request->selected_suppliers, $request->supplier_data, $periode->id);
-        }
-
-        DB::commit();
-
-        return redirect()->route('periode.index')
-            ->with('success', 'Periode baru dibuat & otomatis aktif!');
-    } catch (\Throwable $e) {
-        DB::rollBack();
-        return back()->withInput()->with('error', 'Gagal membuat periode: ' . $e->getMessage());
-    }
-}
-
-private function copySuppliersWithNewData(array $supplierIds, array $supplierData, $toPeriodeId)
-{
-    $suppliers = Supplier::whereIn('id', $supplierIds)->get();
-
-    foreach ($suppliers as $s) {
-        // Cek hanya di periode tujuan
-        $exists = Supplier::where('periode_id', $toPeriodeId)
-            ->where('code', $s->code)
-            ->exists();
-
-        if ($exists) {
-            continue;
-        }
-
-        Supplier::create([
-            'periode_id'        => $toPeriodeId,
-            'code'              => $s->code,
-            'name'              => $s->name,
-            'location'          => $s->location,
-            'price_per_kg'      => $supplierData[$s->id]['price_per_kg'] ?? $s->price_per_kg,
-            'volume_per_month'  => $supplierData[$s->id]['volume_per_month'] ?? $s->volume_per_month,
-            'on_time_percent'   => $supplierData[$s->id]['on_time_percent'] ?? $s->on_time_percent,
-            'freq_per_month'    => $supplierData[$s->id]['freq_per_month'] ?? $s->freq_per_month,
-            'is_active'         => 1
-        ]);
-    }
-}
-
-    public function edit(Periode $periode)
-    {
-        $previousPeriodes = Periode::where('id', '!=', $periode->id)
-            ->orderBy('start_date', 'desc')
+        $criterias = Criteria::where('periode_id', $periode->id)
+            ->with('parameters')
             ->get();
 
-        return view('periode.edit', [
-            'periode'          => $periode,
-            'previousPeriodes' => $previousPeriodes
-        ]);
-    }
+        foreach ($request->selected_suppliers as $supplierId) {
 
-    public function update(Request $request, Periode $periode)
-{
-    $request->validate([
-        'name'       => 'required|string|max:255',
-        'code'       => 'required|string|max:100|unique:periodes,code,' . $periode->id,
-        'start_date' => 'required|date',
-        'end_date'   => 'required|date|after:start_date',
-    ]);
+            $supplier = Supplier::find($supplierId);
+            if (!$supplier) continue;
 
-    // Jika periode tidak aktif, boleh edit data supplier dan kriteria
-    if (!$periode->is_active) {
-        $request->validate([
-            'suppliers' => 'nullable|array',
-            'suppliers.*.price_per_kg' => 'required|numeric|min:0',
-            'suppliers.*.volume_per_month' => 'required|numeric|min:0',
-            'suppliers.*.on_time_percent' => 'required|numeric|min:0|max:100',
-            'suppliers.*.freq_per_month' => 'required|integer|min:0',
-            'criterias' => 'nullable|array',
-            'criterias.*.percentage' => 'nullable|numeric|min:0|max:100',
-            'criterias.*.type' => 'nullable|in:Benefit,Cost',
-            'parameters' => 'nullable|array',
-            'parameters.*.score' => 'nullable|integer|min:1|max:5',
-            'parameters.*.description' => 'nullable|string',
-            'parameters.*.operator' => 'nullable|in:lte,gte,equal,between',
-            'parameters.*.min_value' => 'nullable|numeric',
-            'parameters.*.max_value' => 'nullable|numeric',
-        ]);
-    }
+            $data = $request->supplier_data[$supplierId] ?? [];
 
-    $dayCount = Carbon::parse($request->start_date)->diffInDays($request->end_date);
-    if ($dayCount > 31) {
-        return back()->withInput()->with('error', 'Periode maksimal 31 hari!');
-    }
+            $supplier->update([
+                'periode_id'       => $periode->id,
+                'price_per_kg'     => $data['price_per_kg'] ?? 0,
+                'volume_per_month' => $data['volume_per_month'] ?? 0,
+                'on_time_percent'  => $data['on_time_percent'] ?? 0,
+                'freq_per_month'   => $data['freq_per_month'] ?? 0,
+            ]);
 
-    DB::beginTransaction();
-    try {
-        // Update periode
-        $periode->update([
-            'name'        => $request->name,
-            'code'        => $request->code,
-            'start_date'  => $request->start_date,
-            'end_date'    => $request->end_date,
-            'description' => $request->description,
-        ]);
+            foreach ($criterias as $c) {
 
-        // Update data supplier jika periode tidak aktif
-        if (!$periode->is_active && $request->suppliers) {
-            foreach ($request->suppliers as $supplierId => $supplierData) {
-                $supplier = Supplier::find($supplierId);
-                if ($supplier && $supplier->periode_id == $periode->id) {
-                    $supplier->update($supplierData);
+                // mapping value
+                if (str_contains($c->name, 'Harga')) {
+                    $value = $data['price_per_kg'] ?? 0;
+                } elseif (str_contains($c->name, 'Volume')) {
+                    $value = $data['volume_per_month'] ?? 0;
+                } elseif (str_contains($c->name, 'Ketepatan')) {
+                    $value = $data['on_time_percent'] ?? 0;
+                } elseif (str_contains($c->name, 'Frekuensi')) {
+                    $value = $data['freq_per_month'] ?? 0;
+                } else {
+                    continue;
                 }
-            }
-        }
 
-        // Update kriteria jika periode tidak aktif
-        if (!$periode->is_active && $request->criterias) {
-            foreach ($request->criterias as $criteriaId => $criteriaData) {
-                $criteria = Criteria::find($criteriaId);
-                if ($criteria && $criteria->periode_id == $periode->id) {
-                    $criteria->update($criteriaData);
-                }
-            }
-        }
+                // cari parameter sesuai range
+                $param = $c->parameters->first(function ($p) use ($value) {
 
-        // Update parameter jika periode tidak aktif
-        if (!$periode->is_active && $request->parameters) {
-            foreach ($request->parameters as $parameterId => $parameterData) {
-                $parameter = Parameter::find($parameterId);
-                if ($parameter) {
-                    // Cek apakah parameter milik kriteria di periode ini
-                    $criteria = $parameter->criteria;
-                    if ($criteria && $criteria->periode_id == $periode->id) {
-                        $parameter->update($parameterData);
-                    }
-                }
+                    $min = $p->min_value ?? -INF;
+                    $max = $p->max_value ?? INF;
+
+                    if ($p->operator == 'lte') return $value <= $max;
+                    if ($p->operator == 'gte') return $value >= $min;
+                    if ($p->operator == 'equal') return $value == $min;
+
+                    return $value >= $min && $value <= $max;
+                });
+
+                SupplierScore::updateOrCreate(
+                    [
+                        'supplier_id' => $supplier->id,
+                        'criteria_id' => $c->id,
+                    ],
+                    [
+                        'parameter_id' => $param?->id,
+                        'raw_value'    => $value,
+                        'score'        => $param?->score ?? 1,
+                    ]
+                );
             }
         }
 
         DB::commit();
 
         return redirect()->route('periode.index')
-            ->with('success', 'Periode berhasil diperbarui!');
+            ->with('success', 'Periode berhasil dibuat & supplier masuk ke periode ini');
+
     } catch (\Throwable $e) {
+
         DB::rollBack();
-        return back()->withInput()->with('error', 'Gagal memperbarui periode: ' . $e->getMessage());
+
+        return back()->withInput()->with('error', $e->getMessage());
     }
 }
+
+    public function generateNextMonth()
+    {
+        $last = Periode::orderBy('end_date', 'desc')->first();
+
+        $nextMonth = $last 
+            ? Carbon::parse($last->end_date)->addMonth()
+            : Carbon::now()->addMonth();
+
+        return redirect()->route('periode.create')->withInput([
+            'name'       => "Evaluasi " . $nextMonth->translatedFormat('F Y'),
+            'code'       => "PER" . $nextMonth->format('Ym'),
+            'start_date' => $nextMonth->startOfMonth()->format('Y-m-d'),
+            'end_date'   => $nextMonth->endOfMonth()->format('Y-m-d'),
+        ]);
+    }
 
     public function setActive(Periode $periode)
     {
         Periode::query()->update(['is_active' => 0]);
+
         $periode->update(['is_active' => 1]);
 
         return redirect()->route('periode.index')
@@ -244,42 +175,27 @@ private function copySuppliersWithNewData(array $supplierIds, array $supplierDat
 
     public function destroy(Periode $periode)
     {
-        if ($periode->is_active) {
-            return redirect()->route('periode.index')
-                ->with('error', 'Tidak dapat menghapus periode aktif!');
-        }
-
-        $periode->delete();
-
+    if ($periode->is_active) {
         return redirect()->route('periode.index')
-            ->with('success', 'Periode berhasil dihapus!');
+            ->with('error', 'Tidak dapat menghapus periode aktif!');
     }
 
-    public function generateNextMonth()
-    {
-        $last = Periode::orderBy('end_date', 'desc')->first();
-        $nextMonth = $last ? Carbon::parse($last->end_date)->addMonth() : Carbon::now()->addMonth();
+    $criteriaIds = Criteria::where('periode_id', $periode->id)->pluck('id');
 
-        return redirect()->route('periode.create')
-            ->withInput([
-                'name'       => "Evaluasi " . $nextMonth->translatedFormat('F Y'),
-                'code'       => "PER" . $nextMonth->format('Ym'),
-                'start_date' => $nextMonth->startOfMonth()->format('Y-m-d'),
-                'end_date'   => $nextMonth->endOfMonth()->format('Y-m-d'),
-            ]);
+    SupplierScore::whereIn('criteria_id', $criteriaIds)->delete();
+
+    $periode->delete();
+
+    return redirect()->route('periode.index')
+        ->with('success', 'Periode berhasil dihapus!');
     }
 
     private function createDefaultCriteria($periodeId)
     {
         $default = [
             [
-                'kode'       => 'C1',
-                'name'       => 'Harga (Rp/kg)',
-                'weight'     => 0.3,
-                'percentage' => 30,
-                'type'       => 'Cost',
-                'slug'       => 'harga-rpkg',
-                'params'     => [
+                'kode'=>'C1','name'=>'Harga (Rp/kg)','weight'=>0.3,'percentage'=>30,'type'=>'Cost','slug'=>'harga',
+                'params'=>[
                     ['score'=>5,'operator'=>'lte','min'=>null,'max'=>180,'desc'=>'≤180'],
                     ['score'=>4,'operator'=>'between','min'=>181,'max'=>184,'desc'=>'181–184'],
                     ['score'=>3,'operator'=>'between','min'=>185,'max'=>189,'desc'=>'185–189'],
@@ -288,13 +204,8 @@ private function copySuppliersWithNewData(array $supplierIds, array $supplierDat
                 ]
             ],
             [
-                'kode'       => 'C2',
-                'name'       => 'Volume Pasokan (kg/bulan)',
-                'weight'     => 0.25,
-                'percentage' => 25,
-                'type'       => 'Benefit',
-                'slug'       => 'volume-pasokan',
-                'params'     => [
+                'kode'=>'C2','name'=>'Volume Pasokan (kg/bulan)','weight'=>0.25,'percentage'=>25,'type'=>'Benefit','slug'=>'volume',
+                'params'=>[
                     ['score'=>5,'operator'=>'gte','min'=>15000,'max'=>null,'desc'=>'≥15000'],
                     ['score'=>4,'operator'=>'between','min'=>10000,'max'=>14999,'desc'=>'10000–14999'],
                     ['score'=>3,'operator'=>'between','min'=>7000,'max'=>9999,'desc'=>'7000–9999'],
@@ -303,13 +214,8 @@ private function copySuppliersWithNewData(array $supplierIds, array $supplierDat
                 ]
             ],
             [
-                'kode'       => 'C3',
-                'name'       => 'Ketepatan Waktu (%)',
-                'weight'     => 0.25,
-                'percentage' => 25,
-                'type'       => 'Benefit',
-                'slug'       => 'ketepatan-waktu',
-                'params'     => [
+                'kode'=>'C3','name'=>'Ketepatan Waktu (%)','weight'=>0.25,'percentage'=>25,'type'=>'Benefit','slug'=>'ketepatan',
+                'params'=>[
                     ['score'=>5,'operator'=>'gte','min'=>100,'max'=>null,'desc'=>'100%'],
                     ['score'=>4,'operator'=>'between','min'=>90,'max'=>99,'desc'=>'90–99%'],
                     ['score'=>3,'operator'=>'between','min'=>75,'max'=>89,'desc'=>'75–89%'],
@@ -318,13 +224,8 @@ private function copySuppliersWithNewData(array $supplierIds, array $supplierDat
                 ]
             ],
             [
-                'kode'       => 'C4',
-                'name'       => 'Frekuensi Pengiriman (kali/bulan)',
-                'weight'     => 0.2,
-                'percentage' => 20,
-                'type'       => 'Benefit',
-                'slug'       => 'frekuensi-pengiriman',
-                'params'     => [
+                'kode'=>'C4','name'=>'Frekuensi Pengiriman (kali/bulan)','weight'=>0.2,'percentage'=>20,'type'=>'Benefit','slug'=>'frekuensi',
+                'params'=>[
                     ['score'=>5,'operator'=>'gte','min'=>4,'max'=>null,'desc'=>'≥4'],
                     ['score'=>4,'operator'=>'equal','min'=>3,'max'=>3,'desc'=>'3'],
                     ['score'=>3,'operator'=>'equal','min'=>2,'max'=>2,'desc'=>'2'],
@@ -336,78 +237,24 @@ private function copySuppliersWithNewData(array $supplierIds, array $supplierDat
 
         foreach ($default as $c) {
             $criteria = Criteria::create([
-                'periode_id' => $periodeId,
-                'code'       => $c['kode'],
-                'kode'       => $c['kode'],
-                'name'       => $c['name'],
-                'weight'     => $c['weight'],
-                'percentage' => $c['percentage'],
-                'type'       => $c['type'],
-                'slug'       => $c['slug'],
+                'periode_id'=>$periodeId,
+                'code'=>$c['kode'],
+                'kode'=>$c['kode'],
+                'name'=>$c['name'],
+                'weight'=>$c['weight'],
+                'percentage'=>$c['percentage'],
+                'type'=>$c['type'],
+                'slug'=>$c['slug'],
             ]);
 
             foreach ($c['params'] as $p) {
                 Parameter::create([
-                    'criteria_id' => $criteria->id,
-                    'score'       => $p['score'],
-                    'operator'    => $p['operator'],
-                    'min_value'   => $p['min'],
-                    'max_value'   => $p['max'],
-                    'description' => $p['desc'],
-                ]);
-            }
-        }
-    }
-
-    private function copySelectedSuppliers(array $supplierIds, $toPeriodeId)
-    {
-        $suppliers = Supplier::whereIn('id', $supplierIds)->get();
-
-        foreach ($suppliers as $s) {
-            // Cek jika supplier dengan code yang sama sudah ada di periode tujuan
-            $existing = Supplier::where('periode_id', $toPeriodeId)
-                ->where('code', $s->code)
-                ->exists();
-
-            if (!$existing) {
-                Supplier::create([
-                    'periode_id'        => $toPeriodeId,
-                    'code'              => $s->code,
-                    'name'              => $s->name,
-                    'location'          => $s->location,
-                    'price_per_kg'      => $s->price_per_kg,
-                    'volume_per_month'  => $s->volume_per_month,
-                    'on_time_percent'   => $s->on_time_percent,
-                    'freq_per_month'    => $s->freq_per_month,
-                ]);
-            }
-        }
-    }
-
-    private function copyCriteriaFromTemplate($templateId, $toPeriodeId)
-    {
-        $template = Criteria::with('parameters')->find($templateId);
-        
-        if ($template) {
-            $new = Criteria::create([
-                'periode_id' => $toPeriodeId,
-                'code'       => $template->code ?? $template->kode,
-                'kode'       => $template->kode,
-                'name'       => $template->name,
-                'weight'     => $template->weight,
-                'percentage' => $template->percentage ?? intval($template->weight * 100),
-                'type'       => $template->type ?? 'Benefit',
-                'slug'       => $template->slug ?? strtolower(str_replace(' ', '-', $template->name)),
-            ]);
-
-            foreach ($template->parameters as $p) {
-                Parameter::create([
-                    'criteria_id' => $new->id,
-                    'score'       => $p->score,
-                    'operator'    => $p->operator ?? 'between',
-                    'min_value'   => $p->min_value,
-                    'max_value'   => $p->max_value,
-                    'description' => $p->description,
+                    'criteria_id'=>$criteria->id,
+                    'score'=>$p['score'],
+                    'operator'=>$p['operator'],
+                    'min_value'=>$p['min'],
+                    'max_value'=>$p['max'],
+                    'description'=>$p['desc'],
                 ]);
             }
         }

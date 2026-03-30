@@ -13,7 +13,7 @@ return new class extends Migration
 
             $table->unsignedBigInteger('periode_id')->nullable();
 
-            $table->string('code')->unique();
+            $table->string('code');
             $table->string('name');
             $table->string('location')->nullable();
 
@@ -24,10 +24,12 @@ return new class extends Migration
 
             $table->timestamps();
 
+            $table->unique(['code', 'periode_id']);
+
             $table->foreign('periode_id')
-                  ->references('id')
-                  ->on('periodes')
-                  ->nullOnDelete();
+                ->references('id')
+                ->on('periodes')
+                ->nullOnDelete();
         });
     }
 

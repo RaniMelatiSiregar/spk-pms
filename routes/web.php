@@ -7,6 +7,7 @@ use App\Http\Controllers\CriteriaController;
 use App\Http\Controllers\ParameterController;
 use App\Http\Controllers\SPKController;
 use App\Http\Controllers\PeriodeController;
+use App\Http\Controllers\SupplierScoreController;
 
 Route::get('/', fn()=> redirect()->route('login'));
 

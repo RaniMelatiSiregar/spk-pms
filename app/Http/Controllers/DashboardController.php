@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Supplier;
 use App\Models\Criteria;
 use App\Models\Periode;
+use App\Models\SupplierScore;
 
 class DashboardController extends Controller
 {
@@ -13,6 +14,7 @@ class DashboardController extends Controller
     {
         $periodes = Periode::orderBy('start_date', 'desc')->get();
 
+        //pilih periode
         if ($request->periode_id) {
             $selectedPeriode = Periode::find($request->periode_id);
         } else {
@@ -23,6 +25,7 @@ class DashboardController extends Controller
             $selectedPeriode = $periodes->first();
         }
 
+        //kalau masih kosong
         if (!$selectedPeriode) {
             return view('dashboard.index', [
                 'suppliers' => collect([]),
@@ -38,9 +41,19 @@ class DashboardController extends Controller
             ]);
         }
 
-        $suppliers = Supplier::where('periode_id', $selectedPeriode->id)->get();
+        //AMBIL KRITERIA SESUAI PERIODE
         $criterias = Criteria::where('periode_id', $selectedPeriode->id)->get();
 
+        $criteriaIds = $criterias->pluck('id');
+
+        //AMBIL SUPPLIER DARI supplier_scores (INI FIX UTAMA)
+        $supplierIds = SupplierScore::whereIn('criteria_id', $criteriaIds)
+            ->pluck('supplier_id')
+            ->unique();
+
+        $suppliers = Supplier::whereIn('id', $supplierIds)->get();
+
+        //SUMMARY
         $summary = [
             'total_suppliers' => $suppliers->count(),
             'avg_price' => round($suppliers->avg('price_per_kg') ?? 0, 2),

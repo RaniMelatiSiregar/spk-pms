@@ -6,126 +6,164 @@ use Illuminate\Http\Request;
 use App\Models\Supplier;
 use App\Models\Criteria;
 use App\Models\Periode;
+use App\Models\SupplierScore;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\SPKExport;
 use PDF;
 
 class SPKController extends Controller
 {
-    private function matchParameter($criteria, $value)
+    private function linearRegressionPredict(array $scores): float
     {
-        foreach ($criteria->parameters as $p) {
+        $n = count($scores);
+        if ($n < 2) return round($scores[0] ?? 0, 3);
 
-            $op  = strtolower($p->operator ?? 'between');
-            $min = is_numeric($p->min_value) ? floatval($p->min_value) : PHP_FLOAT_MIN;
-            $max = is_numeric($p->max_value) ? floatval($p->max_value) : PHP_FLOAT_MAX;
+        $x = range(1, $n);
 
-            switch ($op) {
+        $sumX = array_sum($x);
+        $sumY = array_sum($scores);
 
-                case '<=':
-                case 'lte':
-                    if ($value <= $max) return $p->score;
-                    break;
+        $sumXY = 0;
+        $sumX2 = 0;
 
-                case '>=':
-                case 'gte':
-                    if ($value >= $min) return $p->score;
-                    break;
-
-                case '=':
-                case 'equal':
-                    if ($value == $min) return $p->score;
-                    break;
-
-                case 'between':
-                default:
-                    if ($value >= $min && $value <= $max) return $p->score;
-                    break;
-            }
+        for ($i = 0; $i < $n; $i++) {
+            $sumXY += $x[$i] * $scores[$i];
+            $sumX2 += $x[$i] ** 2;
         }
 
-        return 1; // default worst score
+        $b = ($n * $sumXY - $sumX * $sumY) / ($n * $sumX2 - $sumX ** 2);
+        $a = ($sumY - $b * $sumX) / $n;
+
+        $pred = $a + $b * ($n + 1);
+
+        return round(max(1, min(5, $pred)), 3);
     }
 
-    private function getSupplierValue($supplier, $criteriaName)
+    private function getHistoricalScores($currentScore): array
     {
-        $map = [
-            'Harga'     => 'price_per_kg',
-            'Volume'    => 'volume_per_month',
-            'Ketepatan' => 'on_time_percent',
-            'Frekuensi' => 'freq_per_month'
+        return [
+            round($currentScore * 0.95, 3),
+            $currentScore
         ];
-
-        foreach ($map as $key => $field) {
-            if (stripos($criteriaName, $key) !== false) {
-                $value = $supplier->$field ?? 0;
-                return is_numeric($value) ? floatval($value) : 0;
-            }
-        }
-
-        return 0;
     }
 
-    private function utility($value, $min, $max)
-{
-    if ($max == $min) return 1;
-    return round(1 + 4 * (($value - $min) / ($max - $min)), 2);
-}
+    private function generateScoresIfEmpty($periode_id)
+    {
+        $criterias = Criteria::with('parameters')
+            ->where('periode_id', $periode_id)
+            ->get();
 
-public function calculateSMART($periode_id)
-{
-    $suppliers = Supplier::where('periode_id', $periode_id)->get();
-    $criterias = Criteria::where('periode_id', $periode_id)->get();
+        $criteriaIds = $criterias->pluck('id');
 
-    $stats = [
-        'price_per_kg'     => [$suppliers->min('price_per_kg'), $suppliers->max('price_per_kg')],
-        'volume_per_month' => [$suppliers->min('volume_per_month'), $suppliers->max('volume_per_month')],
-        'on_time_percent'  => [$suppliers->min('on_time_percent'), $suppliers->max('on_time_percent')],
-        'freq_per_month'   => [$suppliers->min('freq_per_month'), $suppliers->max('freq_per_month')],
-    ];
+        $existing = SupplierScore::whereIn('criteria_id', $criteriaIds)->count();
 
-    $results = [];
+        if ($existing > 0) return;
 
-    foreach ($suppliers as $s) {
+        $suppliers = Supplier::where('periode_id', $periode_id)->get();
 
-        $detail = [];
-        $total = 0;
+        foreach ($suppliers as $supplier) {
 
-        foreach ($criterias as $c) {
+            foreach ($criterias as $c) {
 
-            if (str_contains($c->name, 'Harga')) {
-                $u = 6 - $this->utility($s->price_per_kg, ...$stats['price_per_kg']);
+                if (str_contains($c->name, 'Harga')) {
+                    $value = $supplier->price_per_kg ?? 0;
+                } elseif (str_contains($c->name, 'Volume')) {
+                    $value = $supplier->volume_per_month ?? 0;
+                } elseif (str_contains($c->name, 'Ketepatan')) {
+                    $value = $supplier->on_time_percent ?? 0;
+                } elseif (str_contains($c->name, 'Frekuensi')) {
+                    $value = $supplier->freq_per_month ?? 0;
+                } else {
+                    continue;
+                }
+
+                $param = $c->parameters->first(function ($p) use ($value) {
+                    $min = $p->min_value ?? -INF;
+                    $max = $p->max_value ?? INF;
+
+                    if ($p->operator == 'lte') return $value <= $max;
+                    if ($p->operator == 'gte') return $value >= $min;
+                    if ($p->operator == 'equal') return $value == $min;
+
+                    return $value >= $min && $value <= $max;
+                });
+
+                SupplierScore::create([
+                    'supplier_id' => $supplier->id,
+                    'criteria_id' => $c->id,
+                    'parameter_id'=> $param?->id,
+                    'raw_value'   => $value,
+                    'score'       => $param?->score ?? 1,
+                ]);
             }
-            elseif (str_contains($c->name, 'Volume')) {
-                $u = $this->utility($s->volume_per_month, ...$stats['volume_per_month']);
-            }
-            elseif (str_contains($c->name, 'Ketepatan')) {
-                $u = $this->utility($s->on_time_percent, ...$stats['on_time_percent']);
-            }
-            elseif (str_contains($c->name, 'Frekuensi')) {
-                $u = $this->utility($s->freq_per_month, ...$stats['freq_per_month']);
-            } else continue;
+        }
+    }
 
-            $weighted = $u * $c->weight;
-            $total += $weighted;
+    public function calculateSMART($periode_id)
+    {
+        $this->generateScoresIfEmpty($periode_id);
 
-            $detail[$c->code] = [
-                'score' => $u,
-                'weighted' => round($weighted, 3)
+        $criterias = Criteria::where('periode_id', $periode_id)->get();
+
+        if ($criterias->count() == 0) {
+            return collect([]);
+        }
+
+        $criteriaIds = $criterias->pluck('id');
+
+        $scores = SupplierScore::whereIn('criteria_id', $criteriaIds)->get();
+
+        if ($scores->count() == 0) {
+            return collect([]);
+        }
+
+        $grouped = $scores->groupBy('supplier_id');
+
+        $supplierIds = $grouped->keys();
+
+        $suppliers = Supplier::whereIn('id', $supplierIds)->get()->keyBy('id');
+
+        $results = [];
+
+        foreach ($grouped as $supplierId => $supplierScores) {
+
+            if (!isset($suppliers[$supplierId])) continue;
+
+            $total = 0;
+
+            foreach ($criterias as $c) {
+
+                $scoreRow = $supplierScores->firstWhere('criteria_id', $c->id);
+
+                $score = $scoreRow->score ?? 0;
+
+                $total += $score * $c->weight;
+            }
+
+            $finalScore = round($total, 3);
+
+            $history = $this->getHistoricalScores($finalScore);
+            $predicted = $this->linearRegressionPredict($history);
+
+            $diff = $predicted - $finalScore;
+
+            if ($diff > 0.05) $trend = 'naik';
+            elseif ($diff < -0.05) $trend = 'turun';
+            else $trend = 'stabil';
+
+            $results[] = [
+                'supplier'        => $suppliers[$supplierId],
+                'score'           => $finalScore,
+                'predicted_score' => $predicted,
+                'trend'           => $trend,
+                'history'         => $history,
             ];
         }
 
-        $results[] = [
-            'supplier' => $s,
-            'score' => round($total, 3),
-            'detail' => $detail
-        ];
+        usort($results, fn($a, $b) => $b['score'] <=> $a['score']);
+
+        return collect($results);
     }
-
-    usort($results, fn($a, $b) => $b['score'] <=> $a['score']);
-    return collect($results);
-}
-
 
     public function compute($periodeId = null)
     {
@@ -143,14 +181,17 @@ public function calculateSMART($periode_id)
             'periode'      => $periode,
             'results'      => $results,
             'criteriaList' => Criteria::with('parameters')->where('periode_id', $periode->id)->get(),
-            'suppliers'    => Supplier::where('periode_id', $periode->id)->get()
+            'suppliers'    => Supplier::whereIn('id', $results->pluck('supplier.id'))->get()
         ]);
     }
 
-    public function result(Request $request)
+    public function result()
     {
         $periode = Periode::where('is_active', 1)->first();
-        if (!$periode) return back()->with('error', 'Tidak ada periode aktif.');
+
+        if (!$periode) {
+            return back()->with('error', 'Tidak ada periode aktif.');
+        }
 
         $results = $this->calculateSMART($periode->id);
 
@@ -160,10 +201,8 @@ public function calculateSMART($periode_id)
     public function history(Request $request)
     {
         $periode_id = $request->periode_id ?? Periode::latest()->value('id');
-
-        $periodes = Periode::orderBy('start_date', 'desc')->get();
-
-        $results = $this->calculateSMART($periode_id);
+        $periodes   = Periode::orderBy('start_date', 'desc')->get();
+        $results    = $this->calculateSMART($periode_id);
 
         return view('dashboard.spk.history', compact('results', 'periodes', 'periode_id'));
     }
@@ -171,11 +210,13 @@ public function calculateSMART($periode_id)
     public function exportPDF()
     {
         $periode = Periode::where('is_active', 1)->first();
-        if (!$periode) return back()->with('error', 'Tidak ada periode aktif.');
 
-        $results = $this->calculateSMART($periode->id);
+        if (!$periode) {
+            return back()->with('error', 'Tidak ada periode aktif.');
+        }
 
-        $criteriaList = Criteria::where('periode_id', $periode->id)->orderBy('id')->get();
+        $results      = $this->calculateSMART($periode->id);
+        $criteriaList = Criteria::where('periode_id', $periode->id)->get();
 
         $pdf = PDF::loadView('dashboard.spk.pdf', [
             'periode'      => $periode,
@@ -189,7 +230,10 @@ public function calculateSMART($periode_id)
     public function exportExcel()
     {
         $periode = Periode::where('is_active', 1)->first();
-        if (!$periode) return back()->with('error', 'Tidak ada periode aktif.');
+
+        if (!$periode) {
+            return back()->with('error', 'Tidak ada periode aktif.');
+        }
 
         return Excel::download(new SPKExport($periode->id), 'hasil_spk.xlsx');
     }

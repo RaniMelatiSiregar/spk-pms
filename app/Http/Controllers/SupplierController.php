@@ -4,16 +4,44 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Supplier;
+use App\Models\Periode;
+use App\Models\Criteria;
+use App\Models\SupplierScore;
 
 class SupplierController extends Controller
 {
-        public function index()
+    public function index()
     {
+
         $suppliers = Supplier::with('periode')
             ->orderBy('created_at', 'asc')
             ->get();
 
-        return view('dashboard.suppliers.index', compact('suppliers'));
+        $activePeriode = Periode::where('is_active', 1)->first();
+
+        if ($activePeriode) {
+
+            $criteriaIds = Criteria::where('periode_id', $activePeriode->id)
+                ->pluck('id');
+
+            $activeSupplierIds = SupplierScore::whereIn('criteria_id', $criteriaIds)
+                ->pluck('supplier_id')
+                ->unique()
+                ->toArray();
+
+            $activeSuppliersCount = count($activeSupplierIds);
+
+        } else {
+            $activeSupplierIds = [];
+            $activeSuppliersCount = 0;
+        }
+
+        return view('dashboard.suppliers.index', compact(
+            'suppliers',
+            'activeSuppliersCount',
+            'activeSupplierIds'
+        ));
+
     }
 
     public function create()
@@ -32,7 +60,7 @@ class SupplierController extends Controller
             'code' => $request->code,
             'name' => $request->name,
             'location' => $request->location,
-            // PERIODE & PENILAIAN DIISI NANTI
+            // periode & penilaian diisi saat buat periode
         ]);
 
         return redirect()
