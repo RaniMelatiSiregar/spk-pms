@@ -200,7 +200,12 @@ class SPKController extends Controller
 
     public function history(Request $request)
     {
-        $periode_id = $request->periode_id ?? Periode::latest()->value('id');
+        if ($request->periode_id) {
+        $periode_id = $request->periode_id;
+        } 
+        else {
+        $periode_id = Periode::where('is_active', 1)->value('id');
+        }
         $periodes   = Periode::orderBy('start_date', 'desc')->get();
         $results    = $this->calculateSMART($periode_id);
 
