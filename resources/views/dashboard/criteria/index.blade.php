@@ -5,12 +5,14 @@
     <h1 class="page-title"><i class="fas fa-list-check"></i> Data Kriteria Penilaian</h1>
     <p class="page-subtitle">Kelola kriteria untuk metode SMART dalam pemilihan supplier</p>
   </div>
+    @if($criterias->count() < 4)
   <div class="page-actions">
     <a href="{{ route('kriteria.create') }}" class="btn-add">
       <i class="fas fa-plus"></i> Tambah Kriteria
     </a>
   </div>
-</div>
+  @endif
+  </div>
 
 <div class="weight-summary-card mb-4">
   <div class="weight-header">
@@ -88,12 +90,23 @@
             <div class="parameter-list">
               @foreach($c->parameters->take(3) as $param)
                 <div class="parameter-item">
-                  <div class="parameter-score">
+                  
+                  <div class="parameter-score" style="width:50px;">
                     <span class="score-badge">{{ $param->score }}</span>
                   </div>
-                  <div class="parameter-description">
-                    {{ $param->description }}
-                  </div>
+
+                    <div class="parameter-description">
+                      @if($param->min_value && $param->max_value)
+                        {{ $param->min_value }} - {{ $param->max_value }}
+                      @elseif($param->min_value && !$param->max_value)
+                        ≥ {{ $param->min_value }}
+                      @elseif(!$param->min_value && $param->max_value)
+                        ≤ {{ $param->max_value }}
+                      @else
+                        -
+                      @endif
+                    </div>
+                    
                 </div>
               @endforeach
               @if($c->parameters->count() > 3)
@@ -465,6 +478,8 @@
   color: #4a5568;
   font-weight: 500;
   line-height: 1.4;
+  min-width: 120px !important;
+  display: block !important;
 }
 
 .parameter-more {
@@ -571,7 +586,15 @@
   }
   
   .parameter-description {
-    font-size: 13px;
+  flex: 1 1 auto !important;  
+  min-width: 0 !important;
+  display: block !important;
+  color: #2d3748 !important;
+  font-size: 14px;
+  font-weight: 500;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal !important;
   }
 }
 </style>

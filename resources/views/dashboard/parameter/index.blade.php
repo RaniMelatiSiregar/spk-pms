@@ -426,10 +426,10 @@
 }
 
 .score-display {
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 3px;
+  align-items: flex-start;
+  width: 100%;
 }
 
 .score-number {
@@ -467,6 +467,9 @@
 .score-label {
   font-size: 11px;
   font-weight: 600;
+  display: block;
+  width: 45px;
+  text-align: center;
   color: #4a5568;
   text-transform: uppercase;
   letter-spacing: 0.5px;

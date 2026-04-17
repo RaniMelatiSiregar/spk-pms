@@ -625,6 +625,8 @@ const minLabel = document.getElementById('minLabel');
 const maxLabel = document.getElementById('maxLabel');
 const conditionText = document.getElementById('conditionText');
 
+let isInitialLoad = true;
+
 function updateFields() {
   const operator = operatorSelect.value;
 
@@ -636,20 +638,20 @@ function updateFields() {
     case '<':
       minValueGroup.style.display = 'none';
       maxLabel.textContent = 'Nilai Maximum';
-      minValue.value = '';
+      if (!isInitialLoad) minValue.value = '';
       break;
       
     case '>=':
     case '>':
       maxValueGroup.style.display = 'none';
       minLabel.textContent = 'Nilai Minimum';
-      maxValue.value = '';
+      if (!isInitialLoad) maxValue.value = '';
       break;
       
     case '=':
       maxValueGroup.style.display = 'none';
       minLabel.textContent = 'Nilai';
-      maxValue.value = '';
+      if (!isInitialLoad) maxValue.value = '';
       break;
       
     case 'between':
@@ -662,6 +664,7 @@ function updateFields() {
       maxValueGroup.style.display = 'none';
   }
   
+  isInitialLoad = false;
   updatePreview();
 }
 
@@ -713,7 +716,7 @@ document.getElementById('parameterForm').addEventListener('submit', function(e) 
   const max = parseFloat(maxValue.value);
   
   if (operator === 'between') {
-    if (!min || !max) {
+    if (!minValue.value || !maxValue.value) {
       e.preventDefault();
       alert('Untuk operator "between", harap isi nilai minimum dan maximum');
       return false;

@@ -12,8 +12,10 @@ class Parameter extends Model
     protected $fillable = [
         'criteria_id',
         'score',
+        'operator',
         'min_value',
-        'max_value'
+        'max_value',
+        'description'
     ];
 
     public function criteria()

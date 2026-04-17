@@ -25,18 +25,16 @@ class ParameterController extends Controller
     public function store(Request $r, Criteria $kriteria)
     {
         $r->validate([
+            'score' => 'required|integer|min:1|max:5',
             'operator' => 'required|in:<=,>=,=,between,<,>',
             'min_value' => 'nullable|numeric',
             'max_value' => 'nullable|numeric',
-            'description' => 'nullable|string'
+            'description' => 'required|string'
         ]);
-
-        $score = Parameter::where('criteria_id', $kriteria->id)->max('score');
-        $nextScore = $score ? $score - 1 : 5;
 
         Parameter::create([
             'criteria_id' => $kriteria->id,
-            'score' => $nextScore,
+            'score' => $r->score,
             'operator' => $r->operator,
             'min_value' => $r->min_value,
             'max_value' => $r->max_value,
@@ -59,7 +57,7 @@ class ParameterController extends Controller
             'operator' => 'required|in:<=,>=,=,between,<,>',
             'min_value' => 'nullable|numeric',
             'max_value' => 'nullable|numeric',
-            'description' => 'nullable|string'
+            'description' => 'required|string'
         ]);
 
         $parameter->update([

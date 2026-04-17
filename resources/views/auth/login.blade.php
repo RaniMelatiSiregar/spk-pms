@@ -15,7 +15,12 @@
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+
+      background: 
+        linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)),
+        url("/images/bg-kayu.png") no-repeat center center;
+
+      background-size: cover;
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -314,10 +319,11 @@
         <span>Akun Default</span>
       </div>
 
-      <div class="default-credentials">
+      {{-- <div class="default-credentials">
         <p><strong>Email:</strong> admin@pms.local</p>
         <p><strong>Password:</strong> password123</p>
-      </div>
+      </div> --}}
+      
     </div>
   </div>
 
