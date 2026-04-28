@@ -46,6 +46,27 @@ class PeriodeController extends Controller
         ));
     }
 
+public function edit($id)
+{
+    $periode = Periode::findOrFail($id);
+    return view('periode.edit', compact('periode'));
+}
+
+public function update(Request $request, $id)
+{
+    $periode = Periode::findOrFail($id);
+
+    $periode->update([
+        'code' => $request->code,
+        'name' => $request->name,
+        'start_date' => $request->start_date,
+        'end_date' => $request->end_date,
+        'description' => $request->description,
+    ]);
+
+    return redirect()->route('periode.index')
+        ->with('success', 'Periode berhasil diupdate');
+}
     public function store(Request $request)
 {
     $request->validate([
