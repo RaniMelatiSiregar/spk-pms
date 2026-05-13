@@ -886,13 +886,15 @@ const supplierData = {!! $allSuppliers->mapWithKeys(function($supplier) {
 function toggleSupplierInputs(checkbox) {
     const supplierId = checkbox.value;
     const inputContainer = document.getElementById(`inputs_supplier_${supplierId}`);
+    const inputs = inputContainer.querySelectorAll('input, select');
     
     if (checkbox.checked) {
         inputContainer.style.display = 'block';
-        // Tambah animasi
         inputContainer.style.animation = 'fadeIn 0.3s ease-in-out';
+        inputs.forEach(input => input.setAttribute('required', true));
     } else {
         inputContainer.style.display = 'none';
+        inputs.forEach(input => input.removeAttribute('required'));
     }
     
     updateSelectedCount();
@@ -1051,6 +1053,11 @@ document.querySelector('[name="start_date"]').addEventListener('change', functio
 
 // Initialize form saat load
 document.addEventListener('DOMContentLoaded', function() {
+    // Lepas required dari semua input supplier yang tersembunyi
+    document.querySelectorAll('.supplier-inputs input, .supplier-inputs select').forEach(input => {
+        input.removeAttribute('required');
+    });
+
     // Initialize selected count
     updateSelectedCount();
     
@@ -1058,19 +1065,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.supplier-checkbox:checked').forEach(checkbox => {
         toggleSupplierInputs(checkbox);
     });
-    
-    // Initialize dates jika ada suggestion
-    const startDateInput = document.querySelector('[name="start_date"]');
-    const endDateInput = document.querySelector('[name="end_date"]');
-    
-    if (startDateInput.value && !endDateInput.value) {
-        const startDate = new Date(startDateInput.value);
-        if (!isNaN(startDate.getTime())) {
-            const endOfMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
-            const formattedDate = endOfMonth.toISOString().split('T')[0];
-            endDateInput.value = formattedDate;
-        }
-    }
     
     // Validasi real-time tanggal
     document.querySelectorAll('input[type="date"]').forEach(input => {

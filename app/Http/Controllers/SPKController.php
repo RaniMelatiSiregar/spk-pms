@@ -39,12 +39,36 @@ class SPKController extends Controller
         return round(max(1, min(5, $pred)), 3);
     }
 
-    private function getHistoricalScores($currentScore): array
+        private function getHistoricalScores($supplierId, $currentPeriodeId): array
     {
-        return [
-            round($currentScore * 0.95, 3),
-            $currentScore
-        ];
+        $periodes = Periode::where('id', '!=', $currentPeriodeId)
+            ->orderBy('start_date', 'asc')
+            ->get();
+
+        $history = [];
+
+        foreach ($periodes as $periode) {
+            $criterias = Criteria::where('periode_id', $periode->id)->get();
+            if ($criterias->isEmpty()) continue;
+
+            $criteriaIds = $criterias->pluck('id');
+
+            $scores = SupplierScore::where('supplier_id', $supplierId)
+                ->whereIn('criteria_id', $criteriaIds)
+                ->get();
+
+            if ($scores->isEmpty()) continue;
+
+            $total = 0;
+            foreach ($criterias as $c) {
+                $scoreRow = $scores->firstWhere('criteria_id', $c->id);
+                $total += ($scoreRow->score ?? 0) * $c->weight;
+            }
+
+            $history[] = round($total, 3);
+        }
+
+        return $history;
     }
 
     private function generateScoresIfEmpty($periode_id)
@@ -142,7 +166,8 @@ class SPKController extends Controller
 
             $finalScore = round($total, 3);
 
-            $history = $this->getHistoricalScores($finalScore);
+            $history = $this->getHistoricalScores($supplierId, $periode_id);
+            $history[] = $finalScore;
             $predicted = $this->linearRegressionPredict($history);
 
             $diff = $predicted - $finalScore;
