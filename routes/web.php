@@ -50,7 +50,7 @@ Route::middleware(['admin.auth'])->group(function(){
     Route::get('/export/excel', [SPKController::class, 'exportExcel'])->name('spk.export.excel');
     Route::get('/export/pdf', [SPKController::class, 'exportPDF'])->name('spk.export.pdf');
 
-    // HISTORY PERHITUNGAN — FIX
+    // HISTORY PERHITUNGAN 
     Route::get('/spk/history', [SPKController::class, 'history'])->name('spk.history');
 
     // PERIODE

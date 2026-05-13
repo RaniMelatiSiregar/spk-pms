@@ -2,8 +2,6 @@
 
 namespace App\Exports;
 
-use App\Models\Criteria;
-use App\Models\Periode;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
@@ -29,25 +27,24 @@ class SPKExport implements FromCollection, WithHeadings, WithMapping
 
     public function headings(): array
     {
-        $criteriaList = Criteria::where('periode_id', $this->periodeId)->orderBy('id')->get();
-
-        $heads = ['Rank', 'Kode', 'Nama Supplier', 'Harga/kg', 'Volume/bln', 'Ketepatan', 'Frekuensi'];
-        foreach ($criteriaList as $c) {
-            $heads[] = $c->code;
-        }
-        $heads[] = 'Skor Akhir';
-
-        return $heads;
+        return [
+            'Rank',
+            'Kode',
+            'Nama Supplier',
+            'Harga/kg',
+            'Volume/bln',
+            'Ketepatan',
+            'Frekuensi',
+            'Skor Akhir'
+        ];
     }
 
     public function map($row): array
     {
         static $rank = 0;
-        $rank++; 
+        $rank++;
 
-        $criteriaList = Criteria::where('periode_id', $this->periodeId)->orderBy('id')->get();
-
-        $data = [
+        return [
             $rank,
             $row['supplier']->code,
             $row['supplier']->name,
@@ -55,14 +52,7 @@ class SPKExport implements FromCollection, WithHeadings, WithMapping
             $row['supplier']->volume_per_month,
             $row['supplier']->on_time_percent,
             $row['supplier']->freq_per_month,
+            $row['score']
         ];
-
-        foreach ($criteriaList as $c) {
-            $data[] = $row['detail'][$c->code]['score'] ?? 0;
-        }
-
-        $data[] = $row['score'];
-
-        return $data;
     }
 }
