@@ -115,8 +115,8 @@
   <div class="card-header-custom">
     <h5><i class="fas fa-list-ol"></i> Peringkat Lengkap Semua Supplier</h5>
     <p class="card-header-note">
-      <i class="fas fa-robot"></i>
-      Kolom <strong>Prediksi AI</strong> dihitung menggunakan <em>Regresi Linear Sederhana</em> berdasarkan riwayat skor supplier antar periode.
+      {{-- <i class="fas fa-robot"></i> --}}
+      Kolom <strong>Prediksi</strong> dihitung menggunakan <em>Regresi Linear Sederhana</em> berdasarkan riwayat skor supplier antar periode.
     </p>
   </div>
   <div class="table-responsive">
@@ -132,7 +132,8 @@
           <th>Frekuensi</th>
           <th class="text-center">Skor Akhir</th>
           <th class="text-center ai-col">
-            <i class="fas fa-robot"></i> Prediksi AI
+            {{-- <i class="fas fa-robot"></i>  --}}
+            Prediksi
             <div class="ai-col-sub">Periode Berikutnya</div>
           </th>
         </tr>
@@ -166,7 +167,7 @@
           <td class="text-center">
             <span class="final-score">{{ $r['score'] }}</span>
           </td>
-          {{-- KOLOM PREDIKSI AI --}}
+          {{-- KOLOM PREDIKSI --}}
           <td class="text-center">
             <div class="prediction-cell">
               <span class="predicted-score">{{ $r['predicted_score'] }}</span>
@@ -195,7 +196,7 @@
   <div class="ai-info-box">
     <div class="ai-info-icon"><i class="fas fa-brain"></i></div>
     <div class="ai-info-content">
-      <strong>Tentang Prediksi AI (Regresi Linear)</strong>
+      <strong>Tentang Prediksi (Regresi Linear)</strong>
       <p>
         Sistem menggunakan metode <em>Simple Linear Regression (y = a + bx)</em> untuk memprediksi skor SMART supplier pada periode berikutnya,
         berdasarkan tren historis skor antar periode. Prediksi ini membantu manajemen mengidentifikasi
@@ -210,7 +211,7 @@
   <div class="col-md-8">
     <div class="chart-card-result">
       <div class="chart-header-custom">
-        <h5><i class="fas fa-chart-bar"></i> Grafik Perbandingan Skor & Prediksi AI</h5>
+        <h5><i class="fas fa-chart-bar"></i> Grafik Perbandingan Skor & Prediksi</h5>
       </div>
       <canvas id="scoreComparisonChart"></canvas>
     </div>
@@ -481,7 +482,7 @@
 <script>
 const results = @json($results);
 
-// Score Comparison Chart — sekarang tampil skor saat ini + prediksi AI
+// Score Comparison Chart — sekarang tampil skor saat ini + prediksi
 const scoreCtx = document.getElementById('scoreComparisonChart');
 const supplierNames = results.map(r => r.supplier.name.length > 15 ? r.supplier.name.substring(0, 15) + '...' : r.supplier.name);
 const scores        = results.map(r => r.score);
