@@ -99,4 +99,88 @@ class SupplierController extends Controller
             ->route('supplier.index')
             ->with('success', 'Supplier berhasil dihapus');
     }
+
+    public function importCsv(Request $request)
+    {
+        $request->validate([
+            'csv_file' => 'required|file|mimes:csv,txt|max:2048',
+        ]);
+
+        $file = $request->file('csv_file');
+        $content = file_get_contents($file->getRealPath());
+
+        // Hapus BOM jika ada
+        $content = ltrim($content, "\xEF\xBB\xBF");
+
+        $lines = preg_split('/\r\n|\r|\n/', trim($content));
+
+        if (empty($lines)) {
+            return back()->with('error', 'File CSV kosong');
+        }
+
+        // Deteksi separator otomatis dari baris header
+        $header = $lines[0];
+        if (substr_count($header, "\t") >= substr_count($header, ",") && 
+            substr_count($header, "\t") >= substr_count($header, ";")) {
+            $separator = "\t";
+        } elseif (substr_count($header, ";") >= substr_count($header, ",")) {
+            $separator = ";";
+        } else {
+            $separator = ",";
+        }
+
+        // Buang baris header
+        array_shift($lines);
+
+        $imported = 0;
+        $skipped  = 0;
+        $errors   = [];
+
+        foreach ($lines as $index => $line) {
+            $line = trim($line);
+            if (empty($line)) continue;
+
+            $row = str_getcsv($line, $separator);
+
+            if (count($row) < 2) {
+                $errors[] = "Baris " . ($index + 2) . ": format tidak valid";
+                $skipped++;
+                continue;
+            }
+
+            $code     = trim($row[0] ?? '');
+            $name     = trim($row[1] ?? '');
+            $location = trim($row[2] ?? '');
+
+            if (empty($code) || empty($name)) {
+                $errors[] = "Baris " . ($index + 2) . ": kode atau nama kosong";
+                $skipped++;
+                continue;
+            }
+
+            if (Supplier::where('code', $code)->exists()) {
+                $errors[] = "Baris " . ($index + 2) . ": kode '$code' sudah ada, dilewati";
+                $skipped++;
+                continue;
+            }
+
+            Supplier::create([
+                'code'     => $code,
+                'name'     => $name,
+                'location' => $location ?: null,
+            ]);
+
+            $imported++;
+        }
+
+        $message = "$imported supplier berhasil diimport";
+        if ($skipped > 0) {
+            $message .= ", $skipped dilewati";
+        }
+
+        return redirect()
+            ->route('supplier.index')
+            ->with('success', $message)
+            ->with('import_errors', $errors);
+    }
 }

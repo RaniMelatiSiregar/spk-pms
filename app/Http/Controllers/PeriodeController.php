@@ -70,12 +70,14 @@ public function update(Request $request, $id)
     public function store(Request $request)
 {
     $request->validate([
-        'name' => 'required|string|max:255',
-        'code' => 'required|string|max:100|unique:periodes,code',
-        'start_date' => 'required|date',
-        'end_date' => 'required|date|after:start_date',
-        'selected_suppliers' => 'required|array|min:1',
-        'supplier_data' => 'required|array',
+    'name'               => 'required|string|max:255',
+    'code'               => 'required|string|max:100|unique:periodes,code',
+    'start_date'         => 'required|date',
+    'end_date'           => 'required|date|after:start_date',
+    'selected_suppliers' => 'required|array|min:6',
+    'supplier_data'      => 'required|array',
+    ], [
+    'selected_suppliers.min' => 'Minimal 6 supplier yang harus dipilih.',
     ]);
 
     DB::beginTransaction();

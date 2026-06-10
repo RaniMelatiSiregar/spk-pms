@@ -6,10 +6,13 @@
     <p class="page-subtitle">Kelola data supplier untuk perhitungan SPK</p>
   </div>
   <div class="page-actions">
+    <button type="button" class="btn-import" data-bs-toggle="modal" data-bs-target="#importCsvModal">
+        <i class="fas fa-file-csv"></i> Import CSV
+    </button>
     <a href="{{ route('supplier.create') }}" class="btn-add">
-      <i class="fas fa-plus"></i> Tambah Supplier
+        <i class="fas fa-plus"></i> Tambah Supplier
     </a>
-  </div>
+</div>
 </div>
 
 <!-- Stats Cards -->
@@ -169,6 +172,28 @@
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(43, 108, 176, 0.4);
   color: white;
+}
+
+.btn-import {
+    padding: 12px 25px;
+    background: linear-gradient(135deg, #38a169 0%, #276749 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px rgba(56, 161, 105, 0.3);
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-import:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(56, 161, 105, 0.4);
+    color: white;
 }
 
 /* Mini Stats Cards */
@@ -430,20 +455,299 @@
   font-weight: 600;
   text-decoration: underline;
 }
+
+.btn-cancel-modal {
+    padding: 10px 24px;
+    background: white;
+    color: #4a5568;
+    border: 2px solid #cbd5e0;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.btn-cancel-modal:hover {
+    background: #4a5568;
+    color: white;
+}
+
+.btn-submit-modal {
+    padding: 10px 24px;
+    background: linear-gradient(135deg, #2b6cb0 0%, #1a365d 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(43, 108, 176, 0.3);
+}
+
+.btn-submit-modal:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(43, 108, 176, 0.4);
+}
+
+.page-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.btn-import {
+    padding: 12px 25px;
+    background: linear-gradient(135deg, #38a169 0%, #276749 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px rgba(56, 161, 105, 0.3);
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-import:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(56, 161, 105, 0.4);
+    color: white;
+}
+
+.drop-zone {
+    border: 2px dashed #cbd5e0;
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    background: #f7fafc;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+    user-select: none;
+}
+
+.drop-zone.drag-hover {
+    border-color: #2b6cb0;
+    background: #ebf8ff;
+}
+
+.drop-zone.file-selected {
+    border-color: #38a169;
+    background: #f0fff4;
+    cursor: default;
+}
+
+.drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.drop-zone.file-selected input[type="file"] {
+    pointer-events: none;
+}
+
 </style>
+
+{{-- Notifikasi error import --}}
+@if(session('import_errors') && count(session('import_errors')) > 0)
+<div class="alert alert-warning alert-dismissible fade show mt-3" role="alert" style="border-radius:12px;">
+    <strong><i class="fas fa-exclamation-triangle"></i> Beberapa baris dilewati:</strong>
+    <ul class="mb-0 mt-2">
+        @foreach(session('import_errors') as $err)
+            <li>{{ $err }}</li>
+        @endforeach
+    </ul>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+@endif
+
+{{-- Modal Import CSV --}}
+<div class="modal fade" id="importCsvModal" tabindex="-1" aria-labelledby="importCsvLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:16px; overflow:hidden; border:none;">
+
+            <div class="modal-header" style="background:linear-gradient(135deg,#2b6cb0 0%,#1a365d 100%); color:white; border:none; padding:18px 22px;">
+                <h5 class="modal-title" id="importCsvLabel" style="font-size:16px; font-weight:600; display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-file-csv"></i> Import Supplier dari CSV
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <form action="{{ route('supplier.importCsv') }}" method="POST" enctype="multipart/form-data" id="importCsvForm">
+                @csrf
+                <div class="modal-body" style="padding:22px;">
+
+                    {{-- Panduan format --}}
+                    <div style="background:#f0fff4; border-radius:10px; border-left:4px solid #38a169; padding:14px 16px; margin-bottom:20px;">
+                        <p style="margin:0 0 8px; font-weight:600; color:#276749; font-size:13px;">
+                            <i class="fas fa-info-circle"></i> Format CSV yang diperlukan
+                        </p>
+                        <div style="font-family:monospace; font-size:12px; color:#276749; background:white; border-radius:6px; padding:10px 12px; line-height:1.8;">
+                            code,name,location<br>
+                            SUP001,CV Maju Jaya,Muara Riau<br>
+                            SUP002,PT Sumber Alam,Pekanbaru<br>
+                            SUP003,UD Berkah,
+                        </div>
+                        <p style="margin:8px 0 0; font-size:11px; color:#4a5568;">
+                            <strong>code</strong> dan <strong>name</strong> wajib diisi &nbsp;·&nbsp; 
+                            <strong>location</strong> boleh kosong &nbsp;·&nbsp; 
+                            baris pertama adalah header
+                        </p>
+                    </div>
+
+                    {{-- Drag & Drop Zone --}}
+                    <div class="drop-zone" id="dropZone">
+                        <input type="file" name="csv_file" id="csvFileInput" accept=".csv,.txt" required>
+
+                        {{-- State: belum ada file --}}
+                        <div id="stateDefault">
+                            <i class="fas fa-cloud-upload-alt" style="font-size:42px; color:#a0aec0; display:block; margin-bottom:12px;"></i>
+                            <p style="font-weight:600; color:#4a5568; margin:0 0 6px; font-size:15px;">
+                                Drag &amp; drop file CSV di sini
+                            </p>
+                            <p style="color:#a0aec0; font-size:13px; margin:0;">
+                                atau <span style="color:#2b6cb0; font-weight:600; text-decoration:underline;">klik untuk pilih file</span>
+                            </p>
+                            <p style="color:#a0aec0; font-size:12px; margin-top:8px;">
+                                Format: .csv atau .txt &nbsp;·&nbsp; Maks. 2MB
+                            </p>
+                        </div>
+
+                        {{-- State: file sudah dipilih --}}
+                        <div id="stateSelected" style="display:none;">
+                            <i class="fas fa-file-csv" style="font-size:42px; color:#38a169; display:block; margin-bottom:12px;"></i>
+                            <p style="font-weight:600; color:#276749; margin:0 0 4px; font-size:15px;" id="dropFileName">-</p>
+                            <p style="color:#68d391; font-size:13px; margin:0;">
+                                <i class="fas fa-check-circle"></i> File siap diimport
+                            </p>
+                            <button type="button" id="btnChangeFile"
+                                    style="margin-top:10px; background:none; border:none; color:#e53e3e; font-size:12px; cursor:pointer; text-decoration:underline; padding:0;">
+                                <i class="fas fa-times"></i> Ganti file
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer" style="border:none; background:#f7fafc; padding:14px 22px; gap:10px;">
+                    <button type="button" class="btn" data-bs-dismiss="modal"
+                            style="padding:10px 22px; border:1.5px solid #cbd5e0; border-radius:8px; font-weight:600; font-size:14px; color:#4a5568; background:white; display:inline-flex; align-items:center; gap:6px;">
+                        <i class="fas fa-times"></i> Batal
+                    </button>
+                    <button type="submit" id="btnSubmitImport"
+                            style="padding:10px 22px; background:linear-gradient(135deg,#2b6cb0 0%,#1a365d 100%); color:white; border:none; border-radius:8px; font-weight:600; font-size:14px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(43,108,176,0.3);">
+                        <i class="fas fa-upload"></i> Import Sekarang
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
 
 @push('scripts')
 <script>
-// Simple search functionality
+// Search functionality
 document.getElementById('searchInput').addEventListener('keyup', function() {
   const searchValue = this.value.toLowerCase();
   const tableRows = document.querySelectorAll('#supplierTable tbody tr');
-  
   tableRows.forEach(row => {
     const text = row.textContent.toLowerCase();
     row.style.display = text.includes(searchValue) ? '' : 'none';
   });
 });
+
+// Drag & Drop CSV
+(function () {
+    const dropZone      = document.getElementById('dropZone');
+    const fileInput     = document.getElementById('csvFileInput');
+    const stateDefault  = document.getElementById('stateDefault');
+    const stateSelected = document.getElementById('stateSelected');
+    const dropFileName  = document.getElementById('dropFileName');
+    const btnChange     = document.getElementById('btnChangeFile');
+    const modal         = document.getElementById('importCsvModal');
+
+    function applyFile(file) {
+        if (!file) return;
+        if (!file.name.match(/\.(csv|txt)$/i)) {
+            alert('File harus berformat .csv atau .txt');
+            return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            alert('Ukuran file maksimal 2MB');
+            return;
+        }
+        dropFileName.textContent    = file.name;
+        stateDefault.style.display  = 'none';
+        stateSelected.style.display = 'block';
+        dropZone.classList.remove('drag-hover');
+        dropZone.classList.add('file-selected');
+    }
+
+    function resetZone() {
+        stateDefault.style.display  = 'block';
+        stateSelected.style.display = 'none';
+        dropZone.classList.remove('file-selected', 'drag-hover');
+        fileInput.value = '';
+    }
+
+    fileInput.addEventListener('change', function () {
+        if (this.files.length > 0) applyFile(this.files[0]);
+    });
+
+    btnChange.addEventListener('click', function (e) {
+        e.stopPropagation();
+        resetZone();
+        setTimeout(() => fileInput.click(), 50);
+    });
+
+    dropZone.addEventListener('dragenter', function (e) {
+        e.preventDefault();
+        if (!dropZone.classList.contains('file-selected'))
+            dropZone.classList.add('drag-hover');
+    });
+
+    dropZone.addEventListener('dragover', function (e) {
+        e.preventDefault();
+    });
+
+    dropZone.addEventListener('dragleave', function (e) {
+        if (!dropZone.contains(e.relatedTarget))
+            dropZone.classList.remove('drag-hover');
+    });
+
+    dropZone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        dropZone.classList.remove('drag-hover');
+        const file = e.dataTransfer.files[0];
+        if (file) {
+            try {
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                fileInput.files = dt.files;
+            } catch (_) {}
+            applyFile(file);
+        }
+    });
+
+    modal.addEventListener('hidden.bs.modal', resetZone);
+})();
 </script>
 @endpush
 @endsection

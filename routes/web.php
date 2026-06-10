@@ -21,6 +21,7 @@ Route::middleware(['admin.auth'])->group(function(){
     Route::get('/dashboard',[DashboardController::class,'index'])->name('dashboard');
 
     // SUPPLIER / ALTERNATIF
+    Route::post('supplier/import-csv', [SupplierController::class, 'importCsv'])->name('supplier.importCsv');
     Route::get('/alternatif',[SupplierController::class,'index'])->name('supplier.index');
     Route::get('/alternatif/create',[SupplierController::class,'create'])->name('supplier.create');
     Route::post('/alternatif',[SupplierController::class,'store'])->name('supplier.store');

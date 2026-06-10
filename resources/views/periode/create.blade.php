@@ -927,7 +927,7 @@ function updateSelectedCount() {
         if (selectedCheckboxes.length === 0) {
             selectedCount.style.background = '#fed7d7';
             selectedCount.style.color = '#742a2a';
-        } else if (selectedCheckboxes.length < 3) {
+        } else if (selectedCheckboxes.length < 6) {
             selectedCount.style.background = '#feebc8';
             selectedCount.style.color = '#744210';
         } else {
@@ -1008,8 +1008,8 @@ document.getElementById('periodeForm').addEventListener('submit', function(e) {
     
     // Validasi untuk supplier
     const selectedSuppliers = document.querySelectorAll('.supplier-checkbox:checked');
-    if (selectedSuppliers.length === 0) {
-        alert('Pilih minimal 1 supplier untuk melanjutkan');
+    if (selectedSuppliers.length < 6) {
+        alert('Pilih minimal 6 supplier untuk melakukan perankingan yang sah (saat ini: ' + selectedSuppliers.length + ' supplier dipilih)');
         hasError = true;
     }
     
